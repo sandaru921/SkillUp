@@ -5,6 +5,7 @@ import { Formik } from 'formik';
 import * as Yup from 'yup';
 import { useDispatch } from 'react-redux';
 import { setCredentials } from '../store/authSlice';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const LoginSchema = Yup.object().shape({
   email: Yup.string().email('Invalid email').required('Required'),
@@ -19,21 +20,34 @@ export default function Login({ navigation }) {
 
   const handleLogin = async (values, { setSubmitting }) => {
     try {
-      // Simulate a small delay
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Check against locally stored users
+      const existingUsers = await AsyncStorage.getItem('@registered_users');
+      const users = existingUsers ? JSON.parse(existingUsers) : [];
       
-      // Dispatch credentials to Redux
-      dispatch(setCredentials({
-        user: { 
-          email: values.email,
-          id: Math.floor(Math.random() * 1000),
-          username: values.email.split('@')[0]
-        },
-        token: 'demo-token-' + Date.now()
-      }));
+      // Find user with matching email and password
+      const user = users.find(
+        u => u.email === values.email && u.password === values.password
+      );
 
-      setSnackbarMessage('✓ Logged in successfully!');
-      setSnackbarVisible(true);
+      if (user) {
+        // Login successful
+        dispatch(setCredentials({
+          user: { 
+            id: user.id,
+            email: user.email,
+            username: user.username,
+            name: user.name
+          },
+          token: 'demo-token-' + Date.now()
+        }));
+
+        setSnackbarMessage('✓ Logged in successfully!');
+        setSnackbarVisible(true);
+      } else {
+        // Login failed
+        setSnackbarMessage('✗ Invalid email or password');
+        setSnackbarVisible(true);
+      }
     } catch (error) {
       console.error('Login error:', error);
       setSnackbarMessage('✗ Login failed. Please try again.');
@@ -54,13 +68,14 @@ export default function Login({ navigation }) {
             <Card.Content>
               <Paragraph>
                 <Text style={{ fontWeight: 'bold' }}>Welcome Back!{'\n'}</Text>
-                
+                Login with your registered credentials.{'\n\n'}
+               
               </Paragraph>
             </Card.Content>
           </Card>
 
           <Formik 
-            initialValues={{ email: 'user@example.com', password: 'password123' }} 
+            initialValues={{ email: '', password: '' }} 
             validationSchema={LoginSchema} 
             onSubmit={handleLogin}
           >

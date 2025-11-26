@@ -86,7 +86,7 @@ export default function Navigation({ isDarkMode, toggleTheme }) {
           <Stack.Screen 
             name="Main" 
             options={{ 
-              headerTitle: `Welcome, ${user?.name || user?.username || user?.email || 'User'}`,
+              headerShown: false, headerTitle: `Welcome, ${user?.name || user?.username || user?.email || 'User'}`,
             }}
           >
             {(props) => <MainTabs {...props} isDarkMode={isDarkMode} toggleTheme={toggleTheme} />}

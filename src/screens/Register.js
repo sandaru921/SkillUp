@@ -4,6 +4,7 @@ import * as Yup from 'yup';
 import axios from 'axios';
 import { View, Text, Platform, ScrollView } from 'react-native';
 import { Button, TextInput, useTheme, Card, Paragraph, Snackbar } from 'react-native-paper';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const RegisterSchema = Yup.object().shape({
   name: Yup.string().min(2, 'Too Short!').required('Required'),
@@ -18,33 +19,47 @@ export default function Register({ navigation }) {
   const [snackbarMessage, setSnackbarMessage] = React.useState('');
 
   const showMessage = (message) => {
-    if (Platform.OS === 'web') {
-      setSnackbarMessage(message);
-      setSnackbarVisible(true);
-    } else {
-      alert(message);
-    }
+    setSnackbarMessage(message);
+    setSnackbarVisible(true);
   };
 
   const handleRegister = async (values, { setSubmitting }) => {
     try {
-      // Using JSONPlaceholder for demo - it accepts any data
-      const res = await axios.post('https://jsonplaceholder.typicode.com/users', {
-        name: values.username,
+      // Store user data locally (since DummyJSON doesn't have real registration)
+      // In a real app, you'd send this to your backend
+      const userData = {
+        id: Date.now(),
+        name: values.name,
+        username: values.username,
         email: values.email,
-        password: values.password
-      });
+        password: values.password, // In real app, NEVER store plain passwords!
+        createdAt: new Date().toISOString(),
+      };
+
+      // Store in AsyncStorage for demo purposes
+      const existingUsers = await AsyncStorage.getItem('@registered_users');
+      const users = existingUsers ? JSON.parse(existingUsers) : [];
       
-      // Simulate successful registration
-      if (res.status === 201) {
-        showMessage('✓ Account created successfully!');
-        
-        // Navigate to Login after 2 seconds
-        setTimeout(() => {
-          navigation.navigate('Login');
-        }, 2000);
+      // Check if user already exists
+      const userExists = users.find(u => u.email === values.email || u.username === values.username);
+      if (userExists) {
+        showMessage('✗ User with this email or username already exists!');
+        setSubmitting(false);
+        return;
       }
+
+      users.push(userData);
+      await AsyncStorage.setItem('@registered_users', JSON.stringify(users));
+
+      showMessage('✓ Account created successfully!');
+      
+      // Navigate to Login after 1.5 seconds
+      setTimeout(() => {
+        navigation.navigate('Login');
+      }, 1500);
+      
     } catch (error) {
+      console.error('Registration error:', error);
       showMessage('✗ Registration failed. Please try again.');
     } finally {
       setSubmitting(false);
@@ -59,7 +74,7 @@ export default function Register({ navigation }) {
             <Card.Content>
               <Paragraph>
                 <Text style={{ fontWeight: 'bold' }}>Create your account{'\n'}</Text>
-                Enter your email and password to register.
+                Enter your details to register. 
               </Paragraph>
             </Card.Content>
           </Card>
@@ -142,7 +157,7 @@ export default function Register({ navigation }) {
                   disabled={isSubmitting}
                   style={{ marginTop: 20 }}
                 >
-                  Register
+                  {isSubmitting ? 'Creating Account...' : 'Register'}
                 </Button>
               </>
             )}
@@ -162,10 +177,6 @@ export default function Register({ navigation }) {
         visible={snackbarVisible}
         onDismiss={() => setSnackbarVisible(false)}
         duration={3000}
-        action={{
-          label: 'Close',
-          onPress: () => setSnackbarVisible(false),
-        }}
       >
         {snackbarMessage}
       </Snackbar>
